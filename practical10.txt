@@ -1,0 +1,137 @@
+ 	 
+PRACTICAL 10: Transformer demo using pretrained model 
+AIM: To demonstrate the use of a pretrained transformer model (BERT) for a downstream NLP task such as sentiment analysis. 
+ 
+CODE: 
+# Aim: To demonstrate the Transformer architecture using a #      pretrained model for Natural Language Processing tasks. # 
+# Key Concepts Covered: 
+# 1. Understanding Pretrained Transformer Models (Transfer Learning) 
+# 2. High-Level Inference using Hugging Face Pipeline API 
+# 3. Sub-word Tokenization under the hood (Input IDs & Attention Mask) 
+# 4. Model Forward Pass: Raw Logits, Softmax & Prediction 
+# 5. Pretrained Autoregressive Transformer for Text Generation 
+# 6. Testing New Sentences with Confidence Scores 
+ 
+ 
+import warnings 
+warnings.filterwarnings("ignore") 
+ 
+from transformers import logging as hf_logging, utils as hf_utils hf_logging.set_verbosity_error() 
+hf_utils.logging.disable_progress_bar() 
+ 
+ 
+# STEP 1: IMPORT REQUIRED LIBRARIES 
+ 
+print("=" * 65) 
+print("PRACTICAL 11: TRANSFORMER DEMO USING PRETRAINED MODEL") print("=" * 65) 
+print("\n[Step 1] Importing required libraries...") 
+ 
+import torch 
+import torch.nn.functional as F 
+from transformers import ( 
+    pipeline, 
+    AutoTokenizer, 
+    AutoModelForSequenceClassification,     set_seed 
+) 
+ 
+set_seed(42) 
+ 
+print("✓ Libraries imported successfully!") print(f"  - PyTorch Version     : {torch.__version__}") print(f"  - Device Available    : {'CUDA (GPU)' if torch.cuda.is_available() else 'CPU'}") 
+ 
+ 
+ 
+# STEP 2: LOAD PRETRAINED MODEL VIA PIPELINE (SENTIMENT ANALYSIS) 
+ 
+# We use DistilBERT fine-tuned on the SST-2 (Stanford Sentiment Treebank) # dataset. DistilBERT is 40% smaller and 60% faster than BERT base # while retaining 97% of its language understanding capabilities. print("\n" + "=" * 65) 
+print("[Step 2] Loading Pretrained Transformer Pipeline...") print("=" * 65) 
+ 
+model_name = "distilbert-base-uncased-finetuned-sst-2-english" classifier = pipeline("sentiment-analysis", model=model_name) print(f"✓ Loaded model: '{model_name}'") 
+ 
+ 
+ 
+# STEP 3: RUN PIPELINE ON SAMPLE DATASET 
+ 
+print("\n" + "=" * 65) 
+print("[Step 3] Sentiment Classification on Sample Sentences") print("=" * 65) 
+ 
+sample_sentences = [ 
+    "I absolutely love learning Natural Language Processing!", 
+    "This was the most boring and terrible movie I have ever watched.", 
+    "Transformers with self-attention are truly revolutionary.", 
+    "The customer service was disappointing and very slow.", 
+    "The food was delicious and the ambiance was fantastic." 
+] 
+ 
+for idx, sentence in enumerate(sample_sentences, 1): 
+    result = classifier(sentence)[0]     sentiment = result["label"] 
+    confidence = result["score"] 
+     
+    print(f"\nSample {idx}:")     print(f"  Text       : \"{sentence}\"")     print(f"  Prediction : {sentiment}") 
+    print(f"  Confidence : {confidence:.4f} ({confidence * 100:.2f}%)") 
+ 
+ 
+# STEP 4: UNDER THE HOOD - SUB-WORD TOKENIZATION 
+print("\n" + "=" * 65) 
+print("[Step 4] Under The Hood: Sub-Word Tokenization") print("=" * 65) 
+tokenizer = AutoTokenizer.from_pretrained(model_name) sample_text = "Transformers are amazing for NLP tasks!" tokenized_output = tokenizer(sample_text) 
+ 
+print(f"Original Text        : \"{sample_text}\"") 
+print(f"Input IDs (Tokens)   : {tokenized_output['input_ids']}") print(f"Attention Mask       : {tokenized_output['attention_mask']}") 
+ 
+decoded_tokens = tokenizer.convert_ids_to_tokens(tokenized_output["input_ids"]) print(f"Sub-Word Tokens      : {decoded_tokens}") 
+ 
+reconstructed_text = tokenizer.decode(tokenized_output["input_ids"]) print(f"Reconstructed Text   : \"{reconstructed_text}\"") 
+ 
+ 
+ 
+# STEP 5: UNDER THE HOOD - MODEL FORWARD PASS & SOFTMAX print("\n" + "=" * 65) 
+print("[Step 5] Under The Hood: Manual Forward Pass & Softmax") print("=" * 65) 
+ 
+model = AutoModelForSequenceClassification.from_pretrained(model_name) inputs = tokenizer(sample_text, return_tensors="pt") 
+ 
+print("Input Tensor Shapes:") 
+print(f"  - input_ids shape      : {inputs['input_ids'].shape}") 
+print(f"  - attention_mask shape : {inputs['attention_mask'].shape}") 
+ 
+# Model inference with torch.no_grad():     outputs = model(**inputs) 
+    logits = outputs.logits 
+ 
+# Apply Softmax over the logits dimension probabilities = F.softmax(logits, dim=1)[0] predicted_id = torch.argmax(probabilities).item() predicted_label = model.config.id2label[predicted_id] confidence_score = probabilities[predicted_id].item() 
+ 
+print("\nModel Output:") 
+print(f"  - Raw Logits (Unnormalized) : {logits[0].tolist()}") 
+print(f"  - Negative Probability      : {probabilities[0].item():.4f} ({probabilities[0].item() * 100:.2f}%)") print(f"  - Positive Probability      : {probabilities[1].item():.4f} ({probabilities[1].item() * 100:.2f}%)") print(f"  - Predicted Class ID        : {predicted_id}") print(f"  - Predicted Label           : {predicted_label}") 
+print(f"  - Final Confidence          : {confidence_score:.4f} ({confidence_score * 100:.2f}%)") 
+ 
+# STEP 6: PRETRAINED TRANSFORMER FOR TEXT GENERATION (GPT-STYLE) 
+ 
+# Pretrained Transformers can also be autoregressive Decoders (like GPT). 
+# Given a prompt, the model predicts the next tokens sequentially. print("\n" + "=" * 65) 
+print("[Step 6] Pretrained Transformer for Text Generation (DistilGPT-2)") print("=" * 65) 
+ 
+generator = pipeline("text-generation", model="distilgpt2") prompt = "Natural language processing with transformers is" 
+ 
+generated_results = generator( 
+    prompt,     max_new_tokens=25,     do_sample=True,     top_k=50,     temperature=0.8, 
+    clean_up_tokenization_spaces=False 
+) 
+ 
+print(f"Prompt         : \"{prompt}\"") 
+print(f"Generated Text : \"{generated_results[0]['generated_text']}\"") 
+ 
+ 
+ 
+# STEP 7: TEST ON A NEW CUSTOM SENTENCE 
+ 
+print("\n" + "=" * 65) 
+print("[Step 7] Testing on a New Custom Sentence") print("=" * 65) 
+ 
+new_sentence = "The practical experiment was intuitive, powerful, and easy to follow." prediction_result = classifier(new_sentence)[0] 
+ 
+print(f"Custom Input : \"{new_sentence}\"") print(f"Predicted    : {prediction_result['label']}") 
+print(f"Confidence   : {prediction_result['score']:.4f} ({prediction_result['score'] * 100:.2f}%)") 
+ 
+print("\n" + "=" * 65) 
+print("PRACTICAL 11 COMPLETED SUCCESSFULLY!") print("=" * 65) 
+ 
+ 

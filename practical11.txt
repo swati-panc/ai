@@ -1,0 +1,200 @@
+PRACTICAL 11: TRANSFORMER DEMO USING PRETRAINED MODEL 
+ 
+ 
+[Step 1] Importing required libraries... 
+✓ Libraries imported successfully! 
+-	PyTorch Version     : 2.14.0+cu130 
+-	Device Available    : CUDA (GPU) 
+ 
+ 
+[Step 2] Loading Pretrained Transformer Pipeline... 
+ 
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads. 
+✓ Loaded model: 'distilbert-base-uncased-finetuned-sst-2-english' 
+ 
+ 
+[Step 3] Sentiment Classification on Sample Sentences 
+ 
+ 
+Sample 1: 
+  Text       : "I absolutely love learning Natural Language Processing!" 
+  Prediction : POSITIVE 
+  Confidence : 0.9998 (99.98%) 
+ 
+Sample 2: 
+  Text       : "This was the most boring and terrible movie I have ever watched." 
+  Prediction : NEGATIVE 
+  Confidence : 0.9997 (99.97%) 
+ 
+Sample 3: 
+  Text       : "Transformers with self-attention are truly revolutionary." 
+  Prediction : POSITIVE 
+  Confidence : 0.9996 (99.96%) 
+ 
+Sample 4: 
+  Text       : "The customer service was disappointing and very slow." 
+  Prediction : NEGATIVE 
+  Confidence : 0.9998 (99.98%) 
+ 
+Sample 5: 
+  Text       : "The food was delicious and the ambiance was fantastic." 
+  Prediction : POSITIVE 
+  Confidence : 0.9999 (99.99%) 
+ 
+[Step 4] Under The Hood: Sub-Word Tokenization 
+ 
+Original Text        : "Transformers are amazing for NLP tasks!" 
+Input IDs (Tokens)   : [101, 19081, 2024, 6429, 2005, 17953, 2361, 8518, 999, 102] 
+Attention Mask       : [1, 1, 1, 1, 1, 1, 1, 1, 1, 1] 
+Sub-Word Tokens      : ['[CLS]', 'transformers', 'are', 'amazing', 'for', 'nl', '##p', 'tasks', '!', '[SEP]'] 
+Reconstructed Text   : "[CLS] transformers are amazing for nlp tasks! [SEP]" 
+ 
+ 
+[Step 5] Under The Hood: Manual Forward Pass & Softmax 
+ 
+Input Tensor Shapes: 
+-	input_ids shape      : torch.Size([1, 10]) 
+-	attention_mask shape : torch.Size([1, 10]) 
+ 
+Model Output: 
+-	Raw Logits (Unnormalized) : [-4.138866424560547, 4.483325958251953] 
+-	Negative Probability      : 0.0002 (0.02%)   - Positive Probability      : 0.9998 (99.98%) 
+-	Predicted Class ID        : 1 
+-	Predicted Label           : POSITIVE 
+-	Final Confidence          : 0.9998 (99.98%) 
+ 
+ 
+[Step 6] Pretrained Transformer for Text Generation (DistilGPT-2) 
+ 
+Prompt         : "Natural language processing with transformers is" 
+Generated Text : "Natural language processing with transformers is a common technique that has been used extensively in a variety of applications, including computer applications, image processing, and video processing (" 
+ 
+ 
+[Step 7] Testing on a New Custom Sentence 
+ 
+Custom Input : "The practical experiment was intuitive, powerful, and easy to follow." 
+Predicted    : POSITIVE 
+Confidence   : 0.9998 (99.98%) 
+ 
+ 
+PRACTICAL 11 COMPLETED SUCCESSFULLY
+
+
+
+# PRACTICAL 11: TRANSFORMER DEMO USING PRETRAINED MODEL
+
+# Step 1: Import libraries
+from transformers import pipeline, AutoTokenizer, AutoModelForSequenceClassification
+import torch
+
+print("Libraries imported successfully!")
+print("PyTorch Version:", torch.__version__)
+
+# Check device
+device = 0 if torch.cuda.is_available() else -1
+print("Device:", "CUDA (GPU)" if device == 0 else "CPU")
+
+
+# Step 2: Load pretrained Transformer model
+print("\nLoading Pretrained Transformer...")
+
+sentiment = pipeline(
+    "sentiment-analysis",
+    model="distilbert-base-uncased-finetuned-sst-2-english",
+    device=device
+)
+
+print("Model loaded successfully!")
+
+
+# Step 3: Sentiment Classification
+sentences = [
+    "I absolutely love learning Natural Language Processing!",
+    "This was the most boring and terrible movie I have ever watched.",
+    "Transformers with self-attention are truly revolutionary.",
+    "The customer service was disappointing and very slow.",
+    "The food was delicious and the ambiance was fantastic."
+]
+
+print("\nSentiment Classification:")
+
+for i, text in enumerate(sentences, 1):
+    result = sentiment(text)[0]
+
+    print("\nSample", i)
+    print("Text       :", text)
+    print("Prediction :", result["label"])
+    print("Confidence :", round(result["score"], 4))
+
+
+# Step 4: Tokenization
+print("\n\nUnder The Hood: Tokenization")
+
+text = "Transformers are amazing for NLP tasks!"
+
+tokenizer = AutoTokenizer.from_pretrained(
+    "distilbert-base-uncased-finetuned-sst-2-english"
+)
+
+tokens = tokenizer.tokenize(text)
+inputs = tokenizer(text, return_tensors="pt")
+
+print("Original Text :", text)
+print("Tokens        :", tokens)
+print("Input IDs     :", inputs["input_ids"].tolist())
+print("Attention Mask:", inputs["attention_mask"].tolist())
+
+
+# Step 5: Manual Forward Pass
+print("\n\nManual Forward Pass")
+
+model = AutoModelForSequenceClassification.from_pretrained(
+    "distilbert-base-uncased-finetuned-sst-2-english"
+)
+
+with torch.no_grad():
+    output = model(**inputs)
+
+logits = output.logits
+probabilities = torch.softmax(logits, dim=1)
+
+predicted_class = torch.argmax(probabilities, dim=1).item()
+
+labels = ["NEGATIVE", "POSITIVE"]
+
+print("Raw Logits:", logits.tolist()[0])
+print("Negative Probability:", round(probabilities[0][0].item(), 4))
+print("Positive Probability:", round(probabilities[0][1].item(), 4))
+print("Predicted Label:", labels[predicted_class])
+
+
+# Step 6: Text Generation using DistilGPT-2
+print("\n\nText Generation")
+
+generator = pipeline(
+    "text-generation",
+    model="distilgpt2"
+)
+
+prompt = "Natural language processing with transformers is"
+
+result = generator(
+    prompt,
+    max_length=40,
+    num_return_sequences=1
+)
+
+print("Prompt:", prompt)
+print("Generated Text:", result[0]["generated_text"])
+
+
+# Step 7: Custom Sentence
+print("\n\nCustom Sentence Testing")
+
+custom_text = "The practical experiment was intuitive, powerful, and easy to follow."
+
+result = sentiment(custom_text)[0]
+
+print("Custom Input:", custom_text)
+print("Predicted:", result["label"])
+print("Confidence:", round(result["score"], 4))
